@@ -1,28 +1,20 @@
 # bolognese
 
-> Syntax validation and automated code resolution for JavaScript and TypeScript.
+Syntax validation and automated code resolution for JavaScript and TypeScript.
 
-Bolognese analyzes JavaScript and TypeScript code, detects syntax and structural problems, and reports issues in a practical, readable way. For supported cases, it can also apply fixes automatically.
+Bolognese parses JS and TS source code, detects syntax and structural problems, and reports them with exact line and column numbers. For a subset of issues it can also apply fixes automatically.
 
-## Features
-
-- **Syntax detection** — missing brackets, unclosed strings, invalid tokens, parse failures
-- **Structural analysis** — unused variables, duplicate declarations, unsafe patterns
-- **Automated fixes** — trailing whitespace, semicolons, import ordering, indentation, unclosed strings
-- **CLI support** — file scanning, recursive project analysis, JSON output, CI integration
-- **Configurable rules** — enable or disable individual checks
-
-## Installation
+## Install
 
 ```bash
 npm install bolognese
 ```
 
-## Usage
+## API
 
-### `analyze()`
+### analyze(code)
 
-Analyzes source code and returns detected issues.
+Returns detected issues without modifying the source.
 
 ```js
 import { analyze } from "bolognese";
@@ -34,32 +26,46 @@ function test( {
 `);
 
 console.log(result);
-// {
-//   success: false,
-//   errors: [{ type: "MissingBracket", message: "...", line: 2, column: 15, ... }],
-//   warnings: [],
-//   infos: [],
-//   fixed: false
-// }
 ```
 
-### `fix()`
+Result shape:
 
-Applies automatic fixes where available.
+```json
+{
+  "success": false,
+  "errors": [
+    {
+      "type": "MissingBracket",
+      "message": "'(' opened at line 2, col 15 was never closed (expected ')')",
+      "line": 2,
+      "column": 15,
+      "severity": "error",
+      "fixable": false
+    }
+  ],
+  "warnings": [],
+  "infos": [],
+  "fixed": false
+}
+```
+
+### fix(code)
+
+Applies automatic fixes where available and returns the updated source.
 
 ```js
 import { fix } from "bolognese";
 
 const output = fix(sourceCode);
 
-console.log(output.code);   // fixed source
-console.log(output.fixes);  // list of applied fixes
-console.log(output.errors); // remaining unfixable errors
+console.log(output.code);   // updated source
+console.log(output.fixes);  // list of what was changed
+console.log(output.errors); // any errors that could not be fixed
 ```
 
-### `configure()`
+### configure(options)
 
-Loads custom rule configuration globally.
+Sets global options that apply to all subsequent `analyze` and `fix` calls.
 
 ```js
 import { configure } from "bolognese";
@@ -74,98 +80,41 @@ configure({
 });
 ```
 
-## Result Format
-
-### AnalysisResult
-
-```ts
-{
-  success: boolean;
-  errors: Issue[];
-  warnings: Issue[];
-  infos: Issue[];
-  fixed: boolean;
-  filePath?: string;
-  parseTime?: number;
-}
-```
-
-### Issue
-
-```ts
-{
-  type: IssueType;     // "SyntaxError" | "MissingBracket" | "UnusedVariable" | ...
-  message: string;
-  line: number;
-  column: number;
-  severity: "error" | "warning" | "info";
-  fixable: boolean;
-  ruleId?: string;
-}
-```
-
-### FixResult
-
-```ts
-{
-  code: string;        // transformed source code
-  fixed: boolean;      // whether any fixes were applied
-  fixes: AppliedFix[]; // list of fixes that were applied
-  errors: Issue[];     // remaining errors after fixing
-}
-```
-
 ## CLI
 
-### Scan files for issues
-
 ```bash
+# scan a directory for issues
 bolognese scan src
+
+# scan and output as JSON (useful for CI)
 bolognese scan src --json
-bolognese scan src --compact
-bolognese scan . --ext ts,tsx
-bolognese scan src --no-warnings
-bolognese scan src --max-errors 10
-```
 
-### Automatically fix issues
-
-```bash
+# apply automatic fixes
 bolognese fix src
+
+# preview fixes without writing to disk
 bolognese fix src --dry-run
-bolognese fix src --json
-```
 
-### Check a code string directly
-
-```bash
+# check a code snippet directly
 bolognese check "const x = 1"
-bolognese check "const x = 1" --json
-bolognese check "const x: string = 1" --ts
 ```
 
-## Detected Issues
+The `scan` command exits with code 1 when errors are found, so it works as a CI gate.
 
-| Rule ID | Type | Severity | Fixable |
-|---------|------|----------|---------|
-| `syntax/parse-error` | SyntaxError, MissingBracket, etc. | error | no |
-| `syntax/unclosed-brackets` | MissingBracket | error | no |
-| `syntax/unclosed-string` | UnclosedString | error | yes |
-| `structural/unused-variables` | UnusedVariable | warning | no |
-| `structural/duplicate-declarations` | DuplicateDeclaration | error | no |
-| `structural/unsafe-patterns` | UnsafePattern | warning | partial |
-| `formatting/semicolons` | SemicolonIssue | warning | yes |
-| `formatting/indentation` | IndentationIssue | warning | yes |
-| `formatting/trailing-whitespace` | WhitespaceIssue | info | yes |
-| `formatting/import-order` | ImportOrderIssue | info | yes |
+## Rules
 
-## CI Integration
-
-Bolognese exits with code `1` when errors are found, making it suitable for CI pipelines:
-
-```yaml
-- run: bolognese scan src --no-warnings
-```
+| Rule | What it checks | Severity | Auto-fixable |
+|------|----------------|----------|--------------|
+| `syntax/parse-error` | Parse failures, invalid tokens, bad imports | error | no |
+| `syntax/unclosed-brackets` | Unmatched `(`, `[`, `{` | error | no |
+| `syntax/unclosed-string` | Unterminated string literals | error | yes |
+| `structural/unused-variables` | Variables declared but never read | warning | no |
+| `structural/duplicate-declarations` | `let`/`const` redeclared in same scope | error | no |
+| `structural/unsafe-patterns` | `eval()`, loose equality `==` | warning | partial |
+| `formatting/semicolons` | Missing semicolons | warning | yes |
+| `formatting/indentation` | Mixed tabs and spaces | warning | yes |
+| `formatting/trailing-whitespace` | Trailing whitespace on lines | info | yes |
+| `formatting/import-order` | Imports not sorted alphabetically | info | yes |
 
 ## License
 
