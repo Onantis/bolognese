@@ -1,6 +1,6 @@
 {
   "name": "@onantis/bolognese",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Syntax validation and automated code resolution for JavaScript and TypeScript.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
