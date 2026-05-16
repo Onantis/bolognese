@@ -2,7 +2,7 @@
 
 Syntax validation and automated code resolution for JavaScript and TypeScript.
 
-Bolognese came from frustration with tools that were either too noisy or too focused on style. The goal here is simpler: detect when code is broken, explain why, and fix what can be fixed automatically. It is designed to work in small personal projects and larger environments like CI pipelines, editor integrations, build systems, and automated workflows.
+Bolognese parses JS and TS source code, detects syntax and structural problems, and reports them with line and column numbers. For a subset of issues it can apply fixes automatically. It works from both the API and the command line.
 
 ## Install
 
@@ -14,7 +14,7 @@ npm install bolognese
 
 ### analyze(code, options?)
 
-Parses source code and returns every issue found, grouped by severity. Does not modify the source.
+Parses source code and returns all detected issues grouped by severity. The source is not modified.
 
 ```js
 import { analyze } from "bolognese";
@@ -25,12 +25,12 @@ function test( {
 }
 `);
 
-// result.success → false when any errors were found
-// result.errors  → array of hard failures (syntax, duplicates, etc.)
-// result.warnings → non-fatal issues (unused vars, unsafe patterns)
-// result.infos   → style-level hints (trailing whitespace, import order)
-// result.fixed   → always false from analyze(), use fix() to apply changes
-// result.parseTime → how long the analysis took in milliseconds
+// result.success   → false when any errors are present
+// result.errors    → syntax and structural errors
+// result.warnings  → non-fatal issues (unused vars, unsafe patterns)
+// result.infos     → style-level observations (whitespace, import order)
+// result.fixed     → always false from analyze(); use fix() to apply changes
+// result.parseTime → time taken in milliseconds
 
 console.log(result.errors[0]);
 // {
@@ -44,7 +44,7 @@ console.log(result.errors[0]);
 // }
 ```
 
-You can pass a file path in options to get it included in results and to help the parser decide whether to treat the source as TypeScript:
+A file path can be passed in options. It is included in the result and used to determine whether the source is TypeScript:
 
 ```js
 const result = analyze(source, { filePath: "src/app.ts" });
@@ -52,7 +52,7 @@ const result = analyze(source, { filePath: "src/app.ts" });
 // result.filePath → "src/app.ts"
 ```
 
-You can also cap the number of errors returned, useful when scanning large files:
+`maxErrors` limits the number of errors collected. Warnings and infos are not affected:
 
 ```js
 const result = analyze(source, { maxErrors: 10 });
@@ -60,17 +60,17 @@ const result = analyze(source, { maxErrors: 10 });
 
 ### fix(code, options?)
 
-Applies automatic fixes where available and returns the updated source along with a description of every change made. Errors that cannot be fixed automatically are returned as-is so you can still act on them.
+Applies automatic fixes where available and returns the updated source. Issues that cannot be fixed are included in the result unchanged.
 
 ```js
 import { fix } from "bolognese";
 
 const result = fix(sourceCode);
 
-// result.code  → the updated source after all fixes were applied
-// result.fixed → true if at least one fix was applied
-// result.fixes → array of { type, description } for each change made
-// result.errors → issues that could not be fixed automatically
+// result.code   → source after fixes were applied
+// result.fixed  → true if at least one fix was applied
+// result.fixes  → list of { type, description } for each change
+// result.errors → issues that were not fixable
 
 console.log(result.fixes);
 // [
@@ -78,155 +78,126 @@ console.log(result.fixes);
 //   { type: "ImportOrderIssue", description: "Sorted import statements alphabetically" }
 // ]
 
-// write the result back to disk yourself, bolognese does not touch the filesystem from the API
+// the API does not write to disk; write result.code back yourself
 fs.writeFileSync("src/app.js", result.code, "utf-8");
 ```
 
 ### configure(options)
 
-Sets global options that apply to all subsequent `analyze` and `fix` calls. Useful when you want a consistent configuration across many files without passing options on every call.
+Sets global options applied to all subsequent `analyze` and `fix` calls. Persists until called again.
 
 ```js
 import { configure } from "bolognese";
 
 configure({
-  // toggle individual rules on or off
+  // enable or disable individual rules
   rules: {
     unusedVariables: true,
     duplicateDeclarations: true,
     unsafePatterns: true,
     semicolons: true,
-    importOrder: false,  // disable import sorting
+    importOrder: false,  // disabled
     whitespace: true,
     indentation: true,
   },
 
-  // stop collecting errors after this many (does not affect warnings or infos)
+  // cap on errors collected per call (does not affect warnings or infos)
   maxErrors: 50,
 });
 ```
 
-Call `configure` once at startup. Settings persist until you call it again.
-
 ## CLI
-
-The CLI mirrors the API and is meant for use in scripts, editors, and CI pipelines.
 
 ### scan
 
-Scans one or more paths for issues and prints a report.
+Scans one or more paths recursively and prints a report. Exits with code 1 when errors are found.
 
 ```bash
-# scan a directory recursively
 bolognese scan src
-
-# scan multiple paths
-bolognese scan src lib tests
-
-# JSON output — useful for parsing results in scripts or CI
-bolognese scan src --json
-
-# compact single-line output — one issue per line
-bolognese scan src --compact
-
-# only report errors, skip warnings and info
+bolognese scan src lib tests          # multiple paths
+bolognese scan src --json             # JSON output
+bolognese scan src --compact          # one line per issue
 bolognese scan src --no-warnings --no-info
-
-# stop after the first 20 errors
 bolognese scan src --max-errors 20
-
-# control which file extensions are included
-bolognese scan src --ext ts,tsx
+bolognese scan src --ext ts,tsx       # filter by extension
 ```
 
-The `scan` command exits with code 1 when any errors are found. This makes it usable as a CI gate:
+CI usage:
 
 ```yaml
-# GitHub Actions example
 - name: Check for syntax errors
   run: bolognese scan src --no-warnings
 ```
 
 ### fix
 
-Applies automatic fixes to files in place.
+Applies fixes to files in place.
 
 ```bash
-# fix a directory
 bolognese fix src
-
-# preview what would change without writing anything
-bolognese fix src --dry-run
-
-# fix and output a JSON report of what changed
-bolognese fix src --json
-
-# only fix specific extensions
+bolognese fix src --dry-run           # report changes without writing
+bolognese fix src --json              # JSON report of what changed
 bolognese fix src --ext js,ts
 ```
 
 ### check
 
-Analyzes a code string directly, without reading from the filesystem. Handy for quick checks or piping from other tools.
+Analyzes a code string directly without reading from the filesystem.
 
 ```bash
 bolognese check "const x = 1"
-
-# treat the input as TypeScript
-bolognese check "const x: number = 1" --ts
-
-# machine-readable output
+bolognese check "const x: number = 1" --ts    # treat as TypeScript
 bolognese check "const x = 1" --json
 ```
 
 ## Rules
 
-Bolognese ships with ten rules across three categories. All are enabled by default.
+Ten rules across three categories. All are enabled by default.
 
 ### Syntax
 
-These run first. If the code cannot be parsed, structural and formatting rules may not have enough information to run accurately.
+Syntax rules run before structural and formatting rules. If the source cannot be parsed, subsequent rules may have incomplete information.
 
 | Rule ID | What it catches | Fixable |
 |---------|-----------------|---------|
-| `syntax/parse-error` | General parse failures, invalid tokens, bad imports, invalid declarations | no |
-| `syntax/unclosed-brackets` | Unmatched `(`, `[`, or `{` with the exact location of the opening | no |
+| `syntax/parse-error` | Parse failures, invalid tokens, bad imports, invalid declarations | no |
+| `syntax/unclosed-brackets` | Unmatched `(`, `[`, or `{`, reported at the opening location | no |
 | `syntax/unclosed-string` | Unterminated single or double-quoted string literals | yes |
 
 ### Structural
 
-These check the code's structure and semantics after it parses successfully.
+Structural rules run after parsing succeeds.
 
 | Rule ID | What it catches | Fixable |
 |---------|-----------------|---------|
 | `structural/unused-variables` | `let` and `const` declarations that are never read | no |
 | `structural/duplicate-declarations` | `let` or `const` names re-declared in the same scope | no |
-| `structural/unsafe-patterns` | Use of `eval()` and loose equality `==` instead of `===` | partial |
+| `structural/unsafe-patterns` | `eval()` calls and loose equality `==` instead of `===` | partial |
 
 ### Formatting
 
-These check style consistency. All of them are auto-fixable.
+Formatting rules check style consistency. All are auto-fixable.
 
 | Rule ID | What it catches | Fixable |
 |---------|-----------------|---------|
-| `formatting/semicolons` | Statements that appear to be missing a trailing semicolon | yes |
-| `formatting/indentation` | Lines that use tabs in a file that otherwise uses spaces, or vice versa | yes |
-| `formatting/trailing-whitespace` | Trailing whitespace at the end of lines | yes |
-| `formatting/import-order` | Import statements that are not sorted alphabetically, or that appear after non-import code | yes |
+| `formatting/semicolons` | Statements missing a trailing semicolon | yes |
+| `formatting/indentation` | Mixed tabs and spaces within a single file | yes |
+| `formatting/trailing-whitespace` | Trailing whitespace at end of lines | yes |
+| `formatting/import-order` | Imports not sorted alphabetically or appearing after non-import statements | yes |
 
 ## Output format
 
-Every issue has the same shape regardless of which rule produced it:
+All issues share the same shape:
 
 ```ts
 {
   type: string;      // e.g. "SyntaxError", "UnusedVariable", "MissingBracket"
-  message: string;   // human-readable description
-  line: number;      // 1-indexed line number
-  column: number;    // 1-indexed column number
+  message: string;   // description of the issue
+  line: number;      // 1-indexed
+  column: number;    // 1-indexed
   severity: "error" | "warning" | "info";
-  fixable: boolean;  // whether fix() can resolve this automatically
-  ruleId?: string;   // the rule that produced it, e.g. "syntax/unclosed-brackets"
+  fixable: boolean;  // whether fix() can resolve this
+  ruleId?: string;   // e.g. "syntax/unclosed-brackets"
 }
 ```
 
