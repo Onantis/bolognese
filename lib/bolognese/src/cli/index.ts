@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { glob } from "glob";
+import { glob } from "fast-glob";
 import { analyze } from "../analyzer/index.js";
 import { fix } from "../resolver/index.js";
 import { formatAnalysisResult, formatFixResult } from "../formatter/index.js";
