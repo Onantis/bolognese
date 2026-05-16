@@ -2,80 +2,33 @@
 
 Syntax validation and automated code resolution for JavaScript and TypeScript.
 
-Bolognese parses JS and TS source code, detects syntax and structural problems, and reports them with exact line and column numbers. For a subset of issues it can also apply fixes automatically.
-
 ## Install
 
 ```bash
 npm install bolognese
 ```
 
-## API
-
-### analyze(code)
-
-Returns detected issues without modifying the source.
+## Usage
 
 ```js
-import { analyze } from "bolognese";
+import { analyze, fix, configure } from "bolognese";
 
-const result = analyze(`
-function test( {
-  console.log("Hello")
-}
-`);
+// analyze — detect issues without changing anything
+const result = analyze(source);
+// result.success   → boolean
+// result.errors    → syntax/structural errors with line + column
+// result.warnings  → non-fatal issues
+// result.infos     → style-level hints
 
-console.log(result);
-```
+// fix — apply automatic fixes where possible
+const { code, fixes, errors } = fix(source);
+// code   → updated source
+// fixes  → list of what was changed
+// errors → anything that could not be fixed
 
-Result shape:
-
-```json
-{
-  "success": false,
-  "errors": [
-    {
-      "type": "MissingBracket",
-      "message": "'(' opened at line 2, col 15 was never closed (expected ')')",
-      "line": 2,
-      "column": 15,
-      "severity": "error",
-      "fixable": false
-    }
-  ],
-  "warnings": [],
-  "infos": [],
-  "fixed": false
-}
-```
-
-### fix(code)
-
-Applies automatic fixes where available and returns the updated source.
-
-```js
-import { fix } from "bolognese";
-
-const output = fix(sourceCode);
-
-console.log(output.code);   // updated source
-console.log(output.fixes);  // list of what was changed
-console.log(output.errors); // any errors that could not be fixed
-```
-
-### configure(options)
-
-Sets global options that apply to all subsequent `analyze` and `fix` calls.
-
-```js
-import { configure } from "bolognese";
-
+// configure — set global options once
 configure({
-  rules: {
-    unusedVariables: true,
-    semicolons: false,
-    importOrder: true,
-  },
+  rules: { unusedVariables: true, semicolons: false },
   maxErrors: 50,
 });
 ```
@@ -83,38 +36,26 @@ configure({
 ## CLI
 
 ```bash
-# scan a directory for issues
-bolognese scan src
-
-# scan and output as JSON (useful for CI)
-bolognese scan src --json
-
-# apply automatic fixes
-bolognese fix src
-
-# preview fixes without writing to disk
-bolognese fix src --dry-run
-
-# check a code snippet directly
-bolognese check "const x = 1"
+bolognese scan src             # report issues
+bolognese scan src --json      # JSON output for CI (exits 1 on errors)
+bolognese fix src              # apply fixes in place
+bolognese fix src --dry-run    # preview without writing
 ```
-
-The `scan` command exits with code 1 when errors are found, so it works as a CI gate.
 
 ## Rules
 
-| Rule | What it checks | Severity | Auto-fixable |
-|------|----------------|----------|--------------|
-| `syntax/parse-error` | Parse failures, invalid tokens, bad imports | error | no |
-| `syntax/unclosed-brackets` | Unmatched `(`, `[`, `{` | error | no |
-| `syntax/unclosed-string` | Unterminated string literals | error | yes |
-| `structural/unused-variables` | Variables declared but never read | warning | no |
-| `structural/duplicate-declarations` | `let`/`const` redeclared in same scope | error | no |
-| `structural/unsafe-patterns` | `eval()`, loose equality `==` | warning | partial |
-| `formatting/semicolons` | Missing semicolons | warning | yes |
-| `formatting/indentation` | Mixed tabs and spaces | warning | yes |
-| `formatting/trailing-whitespace` | Trailing whitespace on lines | info | yes |
-| `formatting/import-order` | Imports not sorted alphabetically | info | yes |
+| Rule | Severity | Fixable |
+|------|----------|---------|
+| Syntax / parse errors | error | no |
+| Unclosed brackets | error | no |
+| Unclosed strings | error | yes |
+| Unused variables | warning | no |
+| Duplicate declarations | error | no |
+| Unsafe patterns (`eval`, `==`) | warning | partial |
+| Missing semicolons | warning | yes |
+| Mixed indentation | warning | yes |
+| Trailing whitespace | info | yes |
+| Unsorted imports | info | yes |
 
 ## License
 
