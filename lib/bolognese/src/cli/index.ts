@@ -197,7 +197,7 @@ program
               `${prefix}${file}: Applied ${result.fixes.length} fix(es)\n`,
             );
             for (const f of result.fixes) {
-              process.stdout.write(`  ✓ ${f.description}\n`);
+              process.stdout.write(`  + ${f.description}\n`);
             }
           }
         }

@@ -51,7 +51,7 @@ export function formatFixResult(
   if (result.fixed) {
     lines.push(`Fixed ${result.fixes.length} issue(s):`);
     for (const fix of result.fixes) {
-      lines.push(`  ✓ ${fix.description}`);
+      lines.push(`  + ${fix.description}`);
     }
   } else {
     lines.push("No automatic fixes were applied.");
@@ -126,7 +126,7 @@ function formatAsText(
   ].sort((a, b) => a.line - b.line || a.column - b.column);
 
   if (allIssues.length === 0) {
-    lines.push("✓ No issues detected");
+    lines.push("No issues detected");
   } else {
     for (const issue of allIssues) {
       lines.push(formatIssue(issue, options));
