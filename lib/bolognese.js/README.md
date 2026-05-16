@@ -1,13 +1,13 @@
-# bolognese
+# bolognese.js
 
 Syntax validation and automated code resolution for JavaScript and TypeScript.
 
-Bolognese parses JS and TS source code, detects syntax and structural problems, and reports them with line and column numbers. For a subset of issues it can apply fixes automatically. It works from both the API and the command line.
+bolognese.js parses JS and TS source code, detects syntax and structural problems, and reports them with line and column numbers. For a subset of issues it can apply fixes automatically. It works from both the API and the command line.
 
 ## Install
 
 ```bash
-npm install bolognese
+npm install bolognese.js
 ```
 
 ## API
@@ -17,7 +17,7 @@ npm install bolognese
 Parses source code and returns all detected issues grouped by severity. The source is not modified.
 
 ```js
-import { analyze } from "bolognese";
+import { analyze } from "bolognese.js";
 
 const result = analyze(`
 function test( {
@@ -63,7 +63,7 @@ const result = analyze(source, { maxErrors: 10 });
 Applies automatic fixes where available and returns the updated source. Issues that cannot be fixed are included in the result unchanged.
 
 ```js
-import { fix } from "bolognese";
+import { fix } from "bolognese.js";
 
 const result = fix(sourceCode);
 
@@ -87,7 +87,7 @@ fs.writeFileSync("src/app.js", result.code, "utf-8");
 Sets global options applied to all subsequent `analyze` and `fix` calls. Persists until called again.
 
 ```js
-import { configure } from "bolognese";
+import { configure } from "bolognese.js";
 
 configure({
   // enable or disable individual rules
