@@ -1,6 +1,6 @@
 {
   "name": "bolognese.js",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Syntax validation and automated code resolution for JavaScript and TypeScript.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
